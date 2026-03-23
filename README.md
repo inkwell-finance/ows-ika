@@ -76,6 +76,8 @@ Broadcast to target chain (EVM / Solana / Sui / ...)
 
 The key insight: **who holds the `DWalletCap` determines who can authorize signing**. When a policy contract holds the cap (e.g. Leviathan's `PolicyGatedDWalletCap`), only the contract can call `approve_message` — forcing on-chain mode. When the user holds the cap directly, they choose.
 
+> **Cap deposit is a one-way gate.** A dWallet starts with the user holding the cap (both modes available). When the user deposits the cap into a protocol's smart contract, off-chain mode becomes permanently unavailable — the contract now controls authorization, and only on-chain transactions through that contract can trigger signing. This is by design: depositing the cap is how you opt into trustless enforcement. The protocol defines what transactions are allowed, and neither the user nor an agent can bypass it. Think of it like handing your car keys to a valet with a GPS fence — you can still drive, but only where they allow.
+
 ## Modules
 
 ### Storage (`src/storage/`)
