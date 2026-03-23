@@ -24,13 +24,17 @@ Agent (MCP/REST)
     ↓  request
 OWS local policy engine ── deny? → stop
     ↓  allow
+Consume presign (pre-computed, from local pool)
+    ↓
+Approve message on-chain (Ika PolicyGatedDWalletCap) ── deny? → stop
+    ↓  allow
 Decrypt user share (AES-256-GCM vault)
     ↓
-Ika on-chain policy check ── deny? → stop
-    ↓  allow
-2PC-MPC signing ceremony (5 phases)
+Compute user contribution (partial signature)
     ↓
-Threshold signature produced
+Submit to Ika network (requestSign)
+    ↓
+Ika completes threshold signature (2PC-MPC)
     ↓
 Broadcast to target chain (EVM / Solana / Sui / ...)
 ```
