@@ -16,7 +16,7 @@ OWS-Ika bridges these two systems:
 | Layer | Responsibility |
 |-------|---------------|
 | **OWS** | Local share custody, agent access (MCP/REST), pre-signing policy enforcement |
-| **Ika** | Distributed threshold signing, on-chain policy enforcement (PolicyGatedDWalletCap) |
+| **Ika** | Distributed threshold signing, on-chain policy enforcement |
 
 A signing request must pass **both** policy layers. Compromising one side is not enough.
 
@@ -146,7 +146,7 @@ import { evaluateDualPolicy } from '@ows-ika/core/policy';
 const result = await evaluateDualPolicy(
   request,
   ['spending-limit', 'base-only'],  // OWS policy IDs
-  ikaPolicyAdapter,                  // checks PolicyGatedDWalletCap on Sui
+  ikaPolicyAdapter,                  // checks on-chain policy contract
   '0x_policy_object_id',
   wallet.dwalletId,
 );
