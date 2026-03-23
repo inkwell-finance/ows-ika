@@ -5,7 +5,7 @@ OpenWallet Standard adapter for Ika 2PC-MPC dWallets.
 Policy-gated threshold signing for AI agents. No single party holds a complete key.
 
 - [OpenWallet Standard](https://github.com/open-wallet-standard/core) ([docs](https://docs.openwallet.sh/))
-- [Ika Network](https://github.com/nicola/ika) ([docs](https://docs.ika.xyz), [site](https://ika.xyz))
+- [Ika Network](https://github.com/dwallet-labs/ika) ([docs](https://docs.ika.xyz), [site](https://ika.xyz))
 
 ## Why
 
