@@ -1,12 +1,15 @@
 # OWS-Ika
 
-OpenWallet Standard adapter for [Ika](https://ika.xyz) 2PC-MPC dWallets.
+OpenWallet Standard adapter for Ika 2PC-MPC dWallets.
 
 Policy-gated threshold signing for AI agents. No single party holds a complete key.
 
+- [OpenWallet Standard](https://github.com/open-wallet-standard/core) ([docs](https://docs.openwallet.sh/))
+- [Ika Network](https://github.com/nicola/ika) ([docs](https://docs.ika.xyz), [site](https://ika.xyz))
+
 ## Why
 
-OpenWallet Standard (OWS) defines how wallets store keys, enforce policies, and expose signing to agents. Ika's 2PC-MPC dWallets split private keys into two shares — one held locally, one held by the Ika network — so neither party can sign alone.
+[OpenWallet Standard (OWS)](https://docs.openwallet.sh/) defines how wallets store keys, enforce policies, and expose signing to agents. [Ika's](https://docs.ika.xyz) 2PC-MPC dWallets split private keys into two shares — one held locally, one held by the Ika network — so neither party can sign alone.
 
 OWS-Ika bridges these two systems:
 
