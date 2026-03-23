@@ -24,17 +24,17 @@ Agent (MCP/REST)
     ↓  request
 OWS local policy engine ── deny? → stop
     ↓  allow
-Consume presign (pre-computed, from local pool)
+Decrypt user share + consume presign
     ↓
-Approve message on-chain (Ika PolicyGatedDWalletCap) ── deny? → stop
+Compute user contribution (partial sig — useless alone)
+    ↓
+Submit to policy chain (e.g. Sui smart contract)
+    ↓
+Policy contract validates tx ── deny? → stop
     ↓  allow
-Decrypt user share (AES-256-GCM vault)
+Policy contract requests Ika signature (atomic, same tx)
     ↓
-Compute user contribution (partial signature)
-    ↓
-Submit to Ika network (requestSign)
-    ↓
-Ika completes threshold signature (2PC-MPC)
+Ika co-signs → threshold signature produced
     ↓
 Broadcast to target chain (EVM / Solana / Sui / ...)
 ```
