@@ -7,6 +7,8 @@ Policy-gated threshold signing for AI agents. No single party holds a complete k
 - [OpenWallet Standard](https://github.com/open-wallet-standard/core) ([docs](https://docs.openwallet.sh/))
 - [Ika Network](https://github.com/dwallet-labs/ika) ([docs](https://docs.ika.xyz), [site](https://ika.xyz))
 
+> **Disclaimer:** This is an exploratory reference implementation — a starting point for what an OWS + Ika integration could look like. The code is untested, the interfaces are subject to change, and it has not been reviewed or audited. Do not use in production.
+
 ## Why
 
 [OpenWallet Standard (OWS)](https://docs.openwallet.sh/) defines how wallets store keys, enforce policies, and expose signing to agents. [Ika's](https://docs.ika.xyz) 2PC-MPC dWallets split private keys into two shares — one held locally, one held by the Ika network — so neither party can sign alone.
