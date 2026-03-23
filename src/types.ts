@@ -145,12 +145,16 @@ export interface IkaWalletFile {
 
 // ─── Signing Types ───────────────────────────────────────────────────────────
 
+export type SigningMode = 'on-chain' | 'off-chain';
+
 export interface IkaSignRequest {
   walletId: string;
   chainId: string;                     // CAIP-2, resolved to curve + hash
   message: Uint8Array;                 // raw bytes to sign
   hashScheme?: HashScheme;             // override auto-detected hash
   signatureAlgorithm?: SignatureAlgorithm;
+  mode?: SigningMode;                  // default: 'on-chain'
+  policyContractId?: string;           // required for on-chain mode
 }
 
 export interface IkaSignAndSendRequest extends IkaSignRequest {
@@ -161,6 +165,7 @@ export interface IkaSignResult {
   signature: Uint8Array;               // raw r||s (64 bytes for ECDSA)
   recoveryId?: number;
   signSessionId: string;               // on-chain sign session for audit
+  mode: SigningMode;                   // which path was taken
 }
 
 export interface IkaSignAndSendResult extends IkaSignResult {

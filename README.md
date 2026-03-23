@@ -19,6 +19,12 @@ A signing request must pass **both** policy layers. Compromising one side is not
 
 ## Architecture
 
+The adapter supports two signing modes. The caller chooses the tradeoff.
+
+### On-chain mode (trustless)
+
+Policy enforcement and Ika signature request happen atomically in the same transaction on the policy chain. Neither can be bypassed without the other.
+
 ```
 Agent (MCP/REST)
     ↓  request
@@ -38,6 +44,37 @@ Ika co-signs → threshold signature produced
     ↓
 Broadcast to target chain (EVM / Solana / Sui / ...)
 ```
+
+### Off-chain mode (flexible)
+
+The caller holds a raw `DWalletCap` and requests Ika's signature directly via the SDK. OWS local policies still apply, but on-chain policy enforcement is opt-in. Useful for development, low-latency operations, or cases where the caller is trusted.
+
+```
+Agent (MCP/REST)
+    ↓  request
+OWS local policy engine ── deny? → stop
+    ↓  allow
+Decrypt user share + consume presign
+    ↓
+Compute user contribution (partial sig — useless alone)
+    ↓
+Request Ika signature directly (off-chain SDK call)
+    ↓
+Ika co-signs → threshold signature produced
+    ↓
+Broadcast to target chain (EVM / Solana / Sui / ...)
+```
+
+### Which mode is available depends on the dWallet setup
+
+| dWallet Kind | DWalletCap Holder | Available Modes | Typical Use |
+|---|---|---|---|
+| `zero-trust` | Policy contract (deposited) | On-chain only | Loans, vaults, protocol treasuries — cap is locked in the contract, only the contract can authorize |
+| `zero-trust` | User/agent (raw cap) | Both | Self-custodied wallets — user can choose trustless or flexible |
+| `shared` | Anyone (public share) | Both | Dev/testing, shared signing — user share is public, anyone can compute the partial sig |
+| `imported-key` | User/agent | Off-chain only | Imported existing key into dWallet — typically no policy contract deployed |
+
+The key insight: **who holds the `DWalletCap` determines who can authorize signing**. When a policy contract holds the cap (e.g. Leviathan's `PolicyGatedDWalletCap`), only the contract can call `approve_message` — forcing on-chain mode. When the user holds the cap directly, they choose.
 
 ## Modules
 

@@ -1,28 +1,23 @@
 /**
  * Bridges OWS sign operations to Ika's 2PC-MPC signing ceremony.
  *
- * The ceremony has 5 phases:
- * 1. Presign (done ahead of time, managed by presign pool)
- * 2. Approve message (on-chain: proves the dWallet owner authorized this message)
- * 3. Compute user contribution (off-chain: decrypts share, computes partial signature)
- * 4. Request sign (on-chain: submits user contribution + message approval)
- * 5. Poll for signature (on-chain: Ika network completes threshold signature)
+ * Two modes:
+ *
+ * On-chain (trustless): User computes partial sig → submits to policy contract
+ * on the policy chain → contract validates tx → contract requests Ika signature
+ * atomically. Policy check and sign request cannot be separated.
+ *
+ * Off-chain (flexible): User computes partial sig → calls Ika SDK directly
+ * with raw DWalletCap. OWS local policies still enforced, but no on-chain
+ * policy enforcement. Useful for self-custodied wallets or development.
  */
 
-import type { IkaSignRequest, IkaSignResult, IkaSharePayload } from '../types.js';
+import type { IkaSignRequest, IkaSignResult, IkaSharePayload, SigningMode } from '../types.js';
 import { resolveChain } from '../chains/registry.js';
 import { unlockShare, loadWalletFile } from '../storage/vault.js';
 import { consumePresign } from './presign.js';
 
 export interface IkaClientAdapter {
-  approveMessage(params: {
-    dwalletCapId: string;
-    curve: number;
-    signatureAlgorithm: number;
-    hashScheme: number;
-    message: Uint8Array;
-  }): Promise<{ messageApprovalId: string }>;
-
   computeUserSignMessage(params: {
     publicOutput: Uint8Array;
     userSecretKeyShare: Uint8Array;
@@ -33,18 +28,6 @@ export interface IkaClientAdapter {
     curve: number;
   }): Promise<Uint8Array>;
 
-  requestSign(params: {
-    verifiedPresignCapId: string;
-    messageApprovalId: string;
-    messageUserSignature: Uint8Array;
-  }): Promise<{ signSessionId: string }>;
-
-  waitForSignature(params: {
-    signSessionId: string;
-    curve: number;
-    signatureAlgorithm: number;
-  }): Promise<{ signature: Uint8Array }>;
-
   getPresignData(presignId: string): Promise<Uint8Array>;
 
   decryptUserShare(params: {
@@ -53,6 +36,36 @@ export interface IkaClientAdapter {
     publicOutput: Uint8Array;
     curve: number;
   }): Promise<{ secretShare: Uint8Array }>;
+
+  /**
+   * Off-chain mode: approve message + request sign + wait for signature
+   * directly via Ika SDK using a raw DWalletCap.
+   */
+  signOffChain(params: {
+    dwalletCapId: string;
+    verifiedPresignCapId: string;
+    messageUserSignature: Uint8Array;
+    message: Uint8Array;
+    curve: number;
+    signatureAlgorithm: number;
+    hashScheme: number;
+  }): Promise<{ signature: Uint8Array; signSessionId: string }>;
+
+  /**
+   * On-chain mode: submit user contribution to a policy contract on the
+   * policy chain. The contract validates the tx against its policies and,
+   * if approved, atomically requests Ika's signature.
+   */
+  signOnChain(params: {
+    policyContractId: string;
+    dwalletId: string;
+    verifiedPresignCapId: string;
+    messageUserSignature: Uint8Array;
+    message: Uint8Array;
+    curve: number;
+    signatureAlgorithm: number;
+    hashScheme: number;
+  }): Promise<{ signature: Uint8Array; signSessionId: string }>;
 }
 
 export interface SignOptions {
@@ -67,6 +80,7 @@ export async function sign(
   const { passphrase, ikaClient } = options;
   const chain = resolveChain(request.chainId);
   const wallet = await loadWalletFile(request.walletId);
+  const mode: SigningMode = request.mode ?? 'on-chain';
 
   if (wallet.curve !== chain.curve) {
     throw new Error(
@@ -74,10 +88,14 @@ export async function sign(
     );
   }
 
+  if (mode === 'on-chain' && !request.policyContractId) {
+    throw new Error('On-chain mode requires policyContractId');
+  }
+
   const signatureAlgorithm = request.signatureAlgorithm ?? chain.signatureAlgorithm;
   const hashScheme = request.hashScheme ?? chain.hashScheme;
 
-  // Phase 1: Consume a pre-computed presign
+  // Step 1: Consume a pre-computed presign
   const presign = await consumePresign(request.walletId);
   if (!presign || !presign.verifiedCapId) {
     throw new Error(
@@ -86,16 +104,7 @@ export async function sign(
     );
   }
 
-  // Phase 2: Approve message on-chain
-  const { messageApprovalId } = await ikaClient.approveMessage({
-    dwalletCapId: wallet.dwalletCapId,
-    curve: wallet.curve,
-    signatureAlgorithm,
-    hashScheme,
-    message: request.message,
-  });
-
-  // Phase 3: Decrypt share and compute user contribution
+  // Step 2: Decrypt share and compute user contribution
   const sharePayload: IkaSharePayload = await unlockShare(request.walletId, passphrase);
   let secretShare: Uint8Array;
 
@@ -129,22 +138,34 @@ export async function sign(
     secretShare.fill(0);
   }
 
-  // Phase 4: Submit to Ika network
-  const { signSessionId } = await ikaClient.requestSign({
+  // Step 3: Request Ika signature — on-chain or off-chain
+  const sigParams = {
     verifiedPresignCapId: presign.verifiedCapId,
-    messageApprovalId,
     messageUserSignature,
-  });
-
-  // Phase 5: Wait for threshold signature
-  const { signature } = await ikaClient.waitForSignature({
-    signSessionId,
+    message: request.message,
     curve: wallet.curve,
     signatureAlgorithm,
-  });
+    hashScheme,
+  };
+
+  let result: { signature: Uint8Array; signSessionId: string };
+
+  if (mode === 'on-chain') {
+    result = await ikaClient.signOnChain({
+      ...sigParams,
+      policyContractId: request.policyContractId!,
+      dwalletId: wallet.dwalletId,
+    });
+  } else {
+    result = await ikaClient.signOffChain({
+      ...sigParams,
+      dwalletCapId: wallet.dwalletCapId,
+    });
+  }
 
   return {
-    signature,
-    signSessionId,
+    signature: result.signature,
+    signSessionId: result.signSessionId,
+    mode,
   };
 }

@@ -62,7 +62,7 @@ export class OwsIkaMcpServer {
       },
       {
         name: 'ows_ika_sign',
-        description: 'Sign a message using Ika 2PC-MPC threshold signing. Requires a verified presign.',
+        description: 'Sign a message using Ika 2PC-MPC threshold signing. Supports on-chain (trustless, policy contract validates and requests Ika atomically) or off-chain (flexible, direct Ika SDK call) modes.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -70,6 +70,8 @@ export class OwsIkaMcpServer {
             chainId: { type: 'string', description: 'CAIP-2 chain identifier or alias (e.g., "ethereum", "solana", "eip155:8453")' },
             messageHex: { type: 'string', description: 'Hex-encoded message bytes to sign' },
             passphrase: { type: 'string', description: 'Vault passphrase to decrypt the user share' },
+            mode: { type: 'string', enum: ['on-chain', 'off-chain'], description: 'Signing mode. on-chain: policy contract validates + requests Ika atomically (trustless). off-chain: direct Ika SDK call (flexible). Default: on-chain.' },
+            policyContractId: { type: 'string', description: 'Policy contract object ID on the policy chain. Required for on-chain mode.' },
           },
           required: ['walletId', 'chainId', 'messageHex', 'passphrase'],
         },
@@ -161,10 +163,13 @@ export class OwsIkaMcpServer {
   }
 
   private async handleSign(args: Record<string, unknown>): Promise<McpToolResult> {
+    const mode = (args.mode as string | undefined) ?? 'on-chain';
     const request: IkaSignRequest = {
       walletId: args.walletId as string,
       chainId: args.chainId as string,
       message: Buffer.from(args.messageHex as string, 'hex'),
+      mode: mode as IkaSignRequest['mode'],
+      policyContractId: args.policyContractId as string | undefined,
     };
 
     // Policy check first (before touching keys)
