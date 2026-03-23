@@ -65,18 +65,24 @@ Ika co-signs → threshold signature produced
 Broadcast to target chain (EVM / Solana / Sui / ...)
 ```
 
-### Which mode is available depends on the dWallet setup
+### dWallet kinds and who needs to sign
 
-| dWallet Kind | DWalletCap Holder | Available Modes | Typical Use |
+| dWallet Kind | Who signs | What it means |
+|---|---|---|
+| **Zero-trust** | User (encrypted share) **AND** DWalletCap holder — both required | Neither party can sign alone. The user computes their partial sig, the cap holder authorizes the message. True 2-of-2. |
+| **Shared** | DWalletCap holder only — unilateral | The network share is public, so the cap holder can sign without the user's participation. Whoever holds the cap has full signing authority. |
+| **Imported** | User can sign independently **OR** through Ika | The user retains the original private key, so they can sign transactions directly without Ika. They can also use Ika's threshold signing path if they want the additional infrastructure (policies, audit trail, etc.). |
+
+### How cap ownership affects signing mode
+
+| DWalletCap Holder | Zero-trust | Shared | Imported |
 |---|---|---|---|
-| `zero-trust` | Policy contract (deposited) | On-chain only | Loans, vaults, protocol treasuries — cap is locked in the contract, only the contract can authorize |
-| `zero-trust` | User/agent (raw cap) | Both | Self-custodied wallets — user can choose trustless or flexible |
-| `shared` | Anyone (public share) | Both | Dev/testing, shared signing — user share is public, anyone can compute the partial sig |
-| `imported-key` | User/agent | Off-chain only | Imported existing key into dWallet — typically no policy contract deployed |
+| **User/agent (raw cap)** | Both modes — user holds share + cap, chooses on-chain or off-chain | Both modes — cap holder can sign unilaterally either way | Both modes — user can also bypass Ika entirely with their original key |
+| **Policy contract (deposited)** | On-chain only — user still provides their partial sig, but only the contract can authorize | On-chain only — contract signs unilaterally, no user participation needed | On-chain through Ika, but user can still sign independently with original key (Ika path is policy-gated, direct path is not) |
 
-The key insight: **who holds the `DWalletCap` determines who can authorize signing**. When a policy contract holds the cap (e.g. Leviathan's `PolicyGatedDWalletCap`), only the contract can call `approve_message` — forcing on-chain mode. When the user holds the cap directly, they choose.
-
-> **Cap deposit is a one-way gate.** A dWallet starts with the user holding the cap (both modes available). When the user deposits the cap into a protocol's smart contract, off-chain mode becomes permanently unavailable — the contract now controls authorization, and only on-chain transactions through that contract can trigger signing. This is by design: depositing the cap is how you opt into trustless enforcement. The protocol defines what transactions are allowed, and neither the user nor an agent can bypass it. Think of it like handing your car keys to a valet with a GPS fence — you can still drive, but only where they allow.
+> **Cap deposit is a one-way gate.** A dWallet starts with the user holding the cap (both modes available). When the user deposits the cap into a protocol's smart contract, off-chain signing through Ika becomes permanently unavailable — the contract now controls authorization, and only on-chain transactions through that contract can trigger Ika signing. This is by design: depositing the cap is how you opt into trustless enforcement. The protocol defines what transactions are allowed, and neither the user nor an agent can bypass it.
+>
+> **Note on imported dWallets:** Depositing the cap into a contract restricts the *Ika signing path*, but the user still has their original private key. This means imported dWallets cannot provide the same enforcement guarantees as zero-trust or shared dWallets — the user can always sign outside of Ika. Use zero-trust when you need cryptographic enforcement that the user cannot circumvent.
 
 ## Modules
 
